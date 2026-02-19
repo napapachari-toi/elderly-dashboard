@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Elderly Care Lovely Dashboard - Full Data</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&family=Mitr:wght@400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #a29bfe; --secondary: #74b9ff; --success: #55efc4;
+            --danger: #ff7675; --warning: #ffeaa7; --bg: #f7f9fc;
+        }
+        body { font-family: 'Sarabun', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: #2d3436; }
+        h1, h2, h3 { font-family: 'Mitr', sans-serif; color: #6c5ce7; }
+        
+        .container { max-width: 1200px; margin: auto; }
+        
+        /* Header Box - Soft Glassmorphism */
+        .header-box {
+            background: white; padding: 30px; border-radius: 35px;
+            box-shadow: 0 15px 35px rgba(108, 92, 231, 0.1);
+            text-align: center; margin-bottom: 30px; border: 4px solid #fff;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white; border: none; padding: 12px 35px; border-radius: 50px;
+            font-size: 1.1rem; cursor: pointer; transition: 0.3s;
+            box-shadow: 0 8px 20px rgba(116, 185, 255, 0.3);
+        }
+        .upload-btn:hover { transform: translateY(-3px); box-shadow: 0 12px 25px rgba(116, 185, 255, 0.4); }
+        
+        /* KPI Cards - Cute Style */
+        .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .kpi-card {
+            background: white; padding: 25px; border-radius: 30px;
+            text-align: center; position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.03); transition: 0.3s;
+        }
+        .kpi-card:hover { transform: scale(1.02); }
+        .kpi-val { font-size: 2.8rem; font-weight: bold; margin: 10px 0; }
+        .label-text { color: #636e72; font-size: 1rem; font-weight: bold; }
+
+        /* Chart Cards */
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; }
+        .card {
+            background: white; padding: 25px; border-radius: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.04);
+        }
+        
+        /* Table Style - Clean & Cute */
+        .table-card {
+            background: white; border-radius: 35px; padding: 30px; margin-top: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05); overflow: hidden;
+        }
+        table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+        th { padding: 15px; color: #a29bfe; font-family: 'Mitr'; font-weight: normal; border-bottom: 2px solid #f1f2f6; }
+        td { padding: 15px; text-align: center; background: #fff; border-top: 1px solid #f8f9fa; border-bottom: 1px solid #f8f9fa; }
+        tr td:first-child { border-left: 1px solid #f8f9fa; border-radius: 20px 0 0 20px; }
+        tr td:last-child { border-right: 1px solid #f8f9fa; border-radius: 0 20px 20px 0; }
+        
+        .badge {
+            padding: 6px 15px; border-radius: 15px; font-weight: bold; font-size: 0.85rem;
+            color: white; display: inline-block;
+        }
+        
+        .hidden { display: none; }
+        select {
+            padding: 10px 20px; border-radius: 20px; border: 2px solid #e1e5ee;
+            font-family: 'Sarabun'; outline: none; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-box">
+        <h1>✨ Nutrition(Elderly Clinic) Dashboard ✨</h1>
+        <p style="color:#b2bec3;">สรุปข้อมูลาวะโภชนาการในคลินิกผู้สูงอายุ</p>
+        <input type="file" id="upload" accept=".xlsx" class="hidden">
+        <button class="upload-btn" onclick="document.getElementById('upload').click()">📁 เลือกไฟล์ Excel</button>
+        <div id="filterArea" class="hidden" style="margin-top:20px;">
+            <select id="yearSelect" onchange="applyFilter()"></select>
+        </div>
+    </div>
+
+    <div id="mainDashboard" class="hidden">
+        <div class="kpi-row">
+            <div class="kpi-card" style="border-bottom: 8px solid var(--primary);">
+                <div class="label-text">ผู้สูงอายุทั้งหมด</div>
+                <div class="kpi-val" style="color:var(--primary);" id="total-val">0</div>
+                <small>คน</small>
+            </div>
+            <div class="kpi-card" style="border-bottom: 8px solid var(--danger);">
+                <div class="label-text">กลุ่ม Moderate/Severe</div>
+                <div class="kpi-val" style="color:var(--danger);" id="risk-val">0</div>
+                <small>คน</small>
+            </div>
+            <div class="kpi-card" style="border-bottom: 8px solid var(--success);">
+                <div class="label-text">เฉลี่ย BMI (ภาพรวม)</div>
+                <div class="kpi-val" style="color:var(--success);" id="bmi-val">0</div>
+                <small>kg/m²</small>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>🍯 ภาวะโภชนาการ (NAF)</h3>
+                <canvas id="nafChart"></canvas>
+            </div>
+            <div class="card">
+                <h3>🥣 สัดส่วน BMI (เกณฑ์เอเชีย)</h3>
+                <canvas id="bmiChart"></canvas>
+            </div>
+            <div class="card">
+                <h3>🍬 ปัญหาที่พบ (Consult)</h3>
+                <canvas id="consultChart"></canvas>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <h3 style="color:var(--danger); margin-bottom:20px;">🧸 ปัญหาในกลุ่ม Moderate & Severe (Priority)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ระดับ NAF</th>
+                        <th>BMI </th>
+                        <th>เรื่องที่ส่งปรึกษา / ปัญหาหลัก</th>
+                    </tr>
+                </thead>
+                <tbody id="riskTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let rawDataStore = {};
+    let charts = {};
+
+    document.getElementById('upload').addEventListener('change', function(e) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const workbook = XLSX.read(new Uint8Array(event.target.result), {type: 'array'});
+            rawDataStore = {};
+            const select = document.getElementById('yearSelect');
+            select.innerHTML = '<option value="all">🌈 แสดงภาพรวมทุกปี</option>';
+
+            workbook.SheetNames.forEach(name => {
+                if(name.includes('ปี')) {
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[name], {header: 1, defval: ""});
+                    rawDataStore[name] = cleanProcess(json);
+                    const opt = document.createElement('option');
+                    opt.value = name; opt.innerText = "📅 " + name;
+                    select.appendChild(opt);
+                }
+            });
+
+            document.getElementById('filterArea').classList.remove('hidden');
+            document.getElementById('mainDashboard').classList.remove('hidden');
+            applyFilter();
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
+    });
+
+    function cleanProcess(rows) {
+        // หาแถวหัวตารางตัวจริง (ที่คอลัมน์ Name หรือ HN อยู่)
+        let headIdx = rows.findIndex(r => r.some(c => String(c).trim() === "Name" || String(c).trim() === "HN"));
+        if(headIdx === -1) headIdx = 1;
+
+        const headers = rows[headIdx].map(h => String(h || "").trim());
+        const dataOnly = rows.slice(headIdx + 1);
+
+        // ดึงเฉพาะแถวที่มีชื่อคนไข้จริงๆ (ข้ามส่วนสรุปสถิติด้านข้าง/ด้านล่าง)
+        const nameColIdx = headers.indexOf("Name");
+        return dataOnly.filter(r => r[nameColIdx] && String(r[nameColIdx]).length > 1).map(r => {
+            let o = {};
+            headers.forEach((h, i) => o[h] = r[i]);
+            return o;
+        });
+    }
+
+    function applyFilter() {
+        const yr = document.getElementById('yearSelect').value;
+        let data = (yr === 'all') ? Object.values(rawDataStore).flat() : rawDataStore[yr];
+        renderUI(data);
+    }
+
+    function renderUI(data) {
+        let naf = {Normal:0, Mild:0, Moderate:0, Severe:0}, bmiGr = {low:0, normal:0, over:0, obese:0};
+        let consults = {};
+        let sumBmi = 0, countBmi = 0;
+        const tbody = document.getElementById("riskTable");
+        tbody.innerHTML = "";
+
+        data.forEach(item => {
+            // NAF & BMI logic
+            let n = String(item['NAF'] || "").toUpperCase();
+            let label = "";
+            let bColor = "";
+            if(n.includes('A')) { naf.Normal++; label="Normal"; }
+            else if(n.includes('B')) { naf.Mild++; label="Mild"; }
+            else if(n.includes('C')) { naf.Moderate++; label="Moderate"; bColor="#fab1a0"; }
+            else if(n.includes('D')) { naf.Severe++; label="Severe"; bColor="#ff7675"; }
+
+            let b = parseFloat(item['BMI']);
+            let bText = "-";
+            if(!isNaN(b)) {
+                bText = b.toFixed(2);
+                sumBmi += b; countBmi++;
+                if(b < 18.5) bmiGr.low++;
+                else if(b < 23) bmiGr.normal++;
+                else if(b < 25) bmiGr.over++;
+                else bmiGr.obese++;
+            }
+
+            let c = String(item['เรื่องที่ consult'] || item['Consult'] || item['เรื่องConsult'] || "");
+            if(c && c !== "0") {
+                ["T2DM", "HTN", "DLP", "weight loss", "Obese", "เบื่ออาหาร"].forEach(kw => {
+                    if(c.toUpperCase().includes(kw.toUpperCase())) consults[kw] = (consults[kw] || 0) + 1;
+                });
+            }
+
+            if(label === "Moderate" || label === "Severe") {
+                tbody.innerHTML += `<tr>
+                    <td><span class="badge" style="background:${bColor}">${label}</span></td>
+                    <td style="font-weight:bold; color:#636e72;">${bText}</td>
+                    <td style="text-align:left">${c}</td>
+                </tr>`;
+            }
+        });
+
+        document.getElementById('total-val').innerText = data.length;
+        document.getElementById('risk-val').innerText = naf.Moderate + naf.Severe;
+        document.getElementById('bmi-val').innerText = countBmi ? (sumBmi/countBmi).toFixed(2) : "0.00";
+
+        draw('nafChart', 'doughnut', ['Normal','Mild','Moderate','Severe'], [naf.Normal, naf.Mild, naf.Moderate, naf.Severe], ['#55efc4','#ffeaa7','#fab1a0','#ff7675']);
+        draw('bmiChart', 'bar', ['ผอม','ปกติ','ท้วม','อ้วน'], [bmiGr.low, bmiGr.normal, bmiGr.over, bmiGr.obese], '#74b9ff');
+        draw('consultChart', 'bar', Object.keys(consults), Object.values(consults), '#a29bfe', true);
+    }
+
+    function draw(id, type, labels, data, colors, horiz) {
+        if(charts[id]) charts[id].destroy();
+        charts[id] = new Chart(document.getElementById(id), {
+            type: type,
+            data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderRadius: 12 }] },
+            options: { indexAxis: horiz ? 'y' : 'x', responsive: true, plugins: { legend: { display: type==='doughnut', position: 'bottom' } } }
+        });
+    }
+</script>
+</body>
+</html>
